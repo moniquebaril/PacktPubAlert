@@ -2,12 +2,13 @@ import urllib.request
 from bs4 import BeautifulSoup
 from slacker import Slacker
 from local_settings import *
+from log import *
 import os.path
 import json
 
 url = "https://www.packtpub.com/packt/offers/free-learning"
 packt_logo = "https://lh3.googleusercontent.com/uKQyBaMg2GjonsxqYsp8CitgG8usmFpBUsbg1BuppjGsrOyV02gD4fVxxCOh29QAW3NZ7rE=s85"
-channel = "#packtalert"
+channel = "#packt_free_bookz"
 
 
 def get_url_contents():
@@ -17,7 +18,7 @@ def get_url_contents():
         content = f.read()
         return content
     except BaseException as e:
-        print(str(e))
+        logging.error(str(e))
         return ""
 
 
@@ -45,7 +46,7 @@ def send_slack_alert(slack_message):
         return slack_client.chat.post_message(channel, slack_message, "packtBot",
                                               None, None, None, None, None, None, packt_logo)
     except BaseException as e:
-        print(str(e))
+        logging.error(str(e))
         return ""
 
 
@@ -55,7 +56,7 @@ def get_last_book_seen():
             with open(FILE_HISTORY, "r") as file:
                 return file.read().replace("title=", "")
     except BaseException as e:
-        print(str(e))
+        logging.error(str(e))
         return ""
 
 
@@ -64,32 +65,32 @@ def update_last_book_seen(current_title):
         with open(FILE_HISTORY, "w") as file:
             file.write("title=" + current_title)
     except BaseException as e:
-        print(str(e))
+        logging.error(str(e))
 
 
 html = get_url_contents()
 if html == "":
-    print("Could not download html for the given url")
+    logging.error("Could not download html for the given url")
     exit()
 title = ""
 try:
     soup = BeautifulSoup(html, 'html.parser')
     title = soup.find("h2").string.strip()
 except BaseException as e:
-    print(str(e))
+    logging.error(str(e))
     exit()
 description = find_description()
 last_book_seen = get_last_book_seen()
 message = "Today's title is *" + title + "*\n" + description + url
 if last_book_seen == title:
-    print("This message has already been sent to Slack, message will not be sent")
-    print(message)
+    logging.info("This message has already been sent to Slack, message will not be sent")
+    logging.info(message)
 else:
-    print("This is a new book - alert has not yet been sent, sending alert")
+    logging.info("This is a new book - alert has not yet been sent, sending alert")
     response = str(send_slack_alert(message))
     if response != "":
         response = json.loads(response)
         if response["ok"]:
             update_last_book_seen(title)
     else:
-        print("Error sending slack message")
+        logging.error("Error sending slack message")
